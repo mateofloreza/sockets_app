@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RTSP Stream</title>
+</head>
+<body>
+    <h1>RTSP Stream</h1>
+    <img id="video-stream" width="640" height="480" />
+
+    <script>
+        const video = document.getElementById('video-stream');
+        const ws = new WebSocket('ws://192.168.178.25:8765');
+
+        ws.onmessage = (event) => {
+            video.src = 'data:image/jpeg;base64,' + event.data;
+        };
+    </script>
+</body>
+</html>
