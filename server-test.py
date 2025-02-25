@@ -11,8 +11,10 @@ import supervision as sv
 # Shared resources
 raw_frame = None
 processed_frame = None
+latest_detections = None
 frame_lock = threading.Lock()
 processed_lock = threading.Lock()
+detection_lock = threading.Lock()
 
 
 model = YOLO("weights.pt")
@@ -40,7 +42,7 @@ def capture_frames():
 
 def process_frames():
     """Processes frames (adds test rectangle) in a separate thread."""
-    global raw_frame, processed_frame
+    global raw_frame, processed_frame, latest_detections
     while True:
         # Get raw frame
         with frame_lock:
@@ -50,32 +52,43 @@ def process_frames():
             current_frame = raw_frame.copy()
         results = model.track(source=current_frame, conf=0.65, device='cpu', max_det=1, persist=True)
         detections = sv.Detections.from_ultralytics(results[0])
-        box_annotator = sv.BoxAnnotator()
-        label_annotator = sv.LabelAnnotator(text_scale = 0.5)
+        # box_annotator = sv.BoxAnnotator()
+        # label_annotator = sv.LabelAnnotator(text_scale = 0.5)
         labels = []
         for box in results[0].boxes:
             labels.append(f'Hello :)')
-        annotated_image = box_annotator.annotate(scene=current_frame, detections=detections)
-        annotated_image = label_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+        # annotated_image = box_annotator.annotate(scene=current_frame, detections=detections)
+        # annotated_image = label_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
         #current_frame = cv2.resize(current_frame, (640,480))
-        with processed_lock:
-            processed_frame = current_frame
+        with detection_lock:
+            latest_detections = (detections, labels)
 
         time.sleep(0.01)
 
 async def stream_frames(websocket):
     """Sends processed frames over websocket."""
-    global processed_frame
+    global processed_frame, raw_frame, latest_detections
+    box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator(text_scale=0.5)
     while True:
-        with processed_lock:
-            if processed_frame is not None:
-                frame_copy = processed_frame.copy()
+        with frame_lock:
+            if raw_frame is not None:
+                frame_copy = raw_frame.copy()
             else:
                 await asyncio.sleep(0.01)
                 continue
+        with detection_lock:
+            if latest_detections is not None:
+                detections, labels = latest_detections
+        
+        if detections is not None:
+            annotated_frame = box_annotator.annotate(scene=frame_copy, detections=detections)
+            annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+        else:
+            annotated_frame = frame_copy
 
         # Encode and send
-        ret, buffer = cv2.imencode('.jpg', frame_copy, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
+        ret, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
         if ret:
             jpg_as_text = base64.b64encode(buffer).decode('utf-8')
             await websocket.send(jpg_as_text)
