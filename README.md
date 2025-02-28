@@ -13,3 +13,18 @@ python server.py
 ```
 
 Open the web on http://192.168.178.25:8000/client.html
+
+Create the directory to store badge image:
+
+```
+mkdir images
+twistd3 web --listen tcp:9595 --path .
+```
+
+To deploy the LLM, please follow: https://github.com/baycarbone/badge_name_recognition/tree/main/multimodal_model
+
+Run: 
+
+```
+python server.py
+```
