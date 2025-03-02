@@ -32,7 +32,7 @@ SERVER_PORT = 9595
 def capture_frames():
     """Continuously captures frames from the RTSP feed."""
     global raw_frame
-    cap = cv2.VideoCapture("rtsp://192.168.178.25:8554/video_feed")
+    cap = cv2.VideoCapture("rtsp://telco:Telco12345@172.27.200.88:88/Preview_01_main")
     
     if not cap.isOpened():
         print("Failed to open RTSP stream")

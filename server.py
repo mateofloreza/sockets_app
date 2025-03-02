@@ -14,7 +14,7 @@ raw_frame = None
 processed_frame = None
 latest_detections = None
 cropped_frame = None
-name_label = "Mateo"
+name_label = "..."
 frame_lock = threading.Lock()
 processed_lock = threading.Lock()
 detection_lock = threading.Lock()
@@ -32,7 +32,7 @@ SERVER_PORT = 9595
 def capture_frames():
     """Continuously captures frames from the RTSP feed."""
     global raw_frame
-    cap = cv2.VideoCapture("rtsp://192.168.178.25:8554/video_feed")
+    cap = cv2.VideoCapture("rtsp://telco:Telco12345@172.27.200.88:88/Preview_01_main")
     
     if not cap.isOpened():
         print("Failed to open RTSP stream")
@@ -62,6 +62,7 @@ def process_frames():
             current_frame = raw_frame.copy()
         results = model.track(source=current_frame, conf=0.65, device='cpu', max_det=1, persist=True)
         detections = sv.Detections.from_ultralytics(results[0])
+
         # box_annotator = sv.BoxAnnotator()
         # label_annotator = sv.LabelAnnotator(text_scale = 0.5)
         if len(results[0].boxes) > 0:
@@ -82,7 +83,7 @@ def process_frames():
 
 def llm_question():
     global name_label
-    llm_endpoint = "http://100.74.10.42:8080/v1/models/internvl2:predict"
+    llm_endpoint = "http://18.156.197.195:8080/v1/models/internvl2:predict"
     while True:
         time.sleep(2)
         try:
@@ -93,7 +94,7 @@ def llm_question():
                         {
                             "inputs": {
                                 "prompt": "return only the first name on the badge and no other text",
-                                "image-url": f"http://100.125.236.112:{SERVER_PORT}/badge/{IMAGE_FILENAME}"
+                                "image-url": f"http://172.27.200.203:{SERVER_PORT}/badge/{IMAGE_FILENAME}"
                             }
                         }
                     ]
@@ -129,6 +130,7 @@ async def stream_frames(websocket):
             annotated_frame = box_annotator.annotate(scene=frame_copy, detections=detections)
             annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         else:
+            print("Frame size: ", frame_copy.shape)
             annotated_frame = frame_copy
 
         # Encode and send
